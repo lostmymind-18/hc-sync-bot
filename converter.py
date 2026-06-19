@@ -79,5 +79,7 @@ def build_markdown_file(article: Article) -> tuple[str, str]:
     )
 
     body = html_to_markdown(article.body_html)
-    contents = frontmatter + body + "\n"
+    # Append URL as plain text so file_search chunks include it and the
+    # model can output the "Article URL:" lines the system prompt requires.
+    contents = frontmatter + body + f"\n\nArticle URL: {article.html_url}\n"
     return filename, contents
