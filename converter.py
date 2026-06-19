@@ -79,7 +79,10 @@ def build_markdown_file(article: Article) -> tuple[str, str]:
     )
 
     body = html_to_markdown(article.body_html)
-    # Append URL as plain text so file_search chunks include it and the
-    # model can output the "Article URL:" lines the system prompt requires.
-    contents = frontmatter + body + f"\n\nArticle URL: {article.html_url}\n"
+    # Place URL at both top and bottom so it appears in the first AND last
+    # chunk. file_search does semantic retrieval — putting URL only at the
+    # top means it's absent from the how-to chunks the model actually uses.
+    url_line = f"Article URL: {article.html_url}"
+    citation_block = f"\n\n---\nCitation (copy exactly): {url_line}\n---"
+    contents = frontmatter + url_line + "\n\n" + body + citation_block + "\n"
     return filename, contents

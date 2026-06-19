@@ -73,8 +73,9 @@ def run() -> int:
         md_path = out_dir / filename
         md_path.write_text(contents, encoding="utf-8")
 
-        # Upload to OpenAI Files API
-        file_id = upload_markdown_file(client, str(md_path))
+        # Upload to OpenAI Files API — pass article URL as filename so
+        # file_search annotations expose the URL directly to the model.
+        file_id = upload_markdown_file(client, str(md_path), d.article.html_url)
 
         # Attach to Vector Store with static chunking
         vsf_id = attach_file_to_vector_store(

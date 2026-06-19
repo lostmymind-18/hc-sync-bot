@@ -19,14 +19,29 @@ from openai import OpenAI, NotFoundError
 logger = logging.getLogger(__name__)
 
 
-def upload_markdown_file(client: OpenAI, filepath: str) -> str:
+def upload_markdown_file(client: OpenAI, filepath: str, article_url: str = "") -> str:
     """
     Upload a single .md file via the Files API (purpose="assistants").
-    Returns the resulting file id.
+
+    Sets the filename to the article URL so that OpenAI's file_search
+    annotation system (`【n†source】`) carries the URL directly — the model
+    sees the URL as the source identifier, enabling it to output
+    "Article URL: ..." citations as the system prompt requires.
     """
     with open(filepath, "rb") as f:
-        response = client.files.create(file=f, purpose="assistants")
-    logger.debug("Uploaded file %s → %s", filepath, response.id)
+        content = f.read()
+    # Use URL as filename (with .md extension so OpenAI treats it as text).
+    # Falls back to the original filename if no URL provided.
+    if article_url:
+        filename = article_url + ".md"
+    else:
+        import os
+        filename = os.path.basename(filepath)
+    response = client.files.create(
+        file=(filename, content, "text/markdown"),
+        purpose="assistants",
+    )
+    logger.debug("Uploaded %s → %s (filename=%s)", filepath, response.id, filename)
     return response.id
 
 
