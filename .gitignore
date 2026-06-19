@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Internal planning docs (not for public repo)
+CLAUDE.md
+PLAN.md
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Generated data (state and scraped markdown are run artifacts, not source)
+data/markdown/*.md
+data/state.json
+
+# OS/editor cruft
+.DS_Store
+.vscode/
+.idea/
+
+# Docker
+*.log

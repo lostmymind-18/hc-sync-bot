@@ -1,0 +1,13 @@
+# Core
+openai>=2.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# HTML -> Markdown conversion
+markdownify>=0.13.0
+
+# Retry/backoff on Zendesk 429s
+tenacity>=8.2.0
+
+# Bonus: tests
+pytest>=8.0.0
