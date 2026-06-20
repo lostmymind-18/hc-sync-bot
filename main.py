@@ -19,7 +19,7 @@ from openai import OpenAI
 from scraper import fetch_all_articles
 from state_store import ChangeType, diff_articles, save_state
 from vector_store_client import (
-    attach_file_to_vector_store,
+    attach_files_batch,
     get_vector_store_stats,
     reconstruct_state_from_store,
     remove_stale_file,
@@ -66,35 +66,40 @@ def sync(
     # 3. Diff live articles against the reconstructed prior state.
     diffs = diff_articles(live_articles, prior)
 
-    added = updated = skipped = 0
+    # 4. Convert + upload every changed article, collecting file ids so they can
+    #    be attached in one batched (parallel-embedding) operation — this keeps
+    #    even a large re-sync under the platform's job timeout, where attaching
+    #    one-by-one (~12s/file) would blow past it.
+    pending = []  # (file_id, attributes, diff)
+    skipped = 0
     for d in diffs:
         if d.change_type == ChangeType.SKIPPED:
             skipped += 1
             continue
-
-        # Convert to Markdown on disk, upload (filename = article URL), attach
-        # with attributes so a later stateless run can reconstruct delta state.
         filename, contents = build_markdown_file(d.article)
         md_path = out_dir / filename
         md_path.write_text(contents, encoding="utf-8")
-
         file_id = upload_markdown_file(client, str(md_path), d.article.html_url)
-        attach_file_to_vector_store(
-            client,
-            vector_store_id,
-            file_id,
-            chunk_size_tokens,
-            chunk_overlap_tokens,
-            attributes={
-                "article_id": str(d.article.id),
-                "updated_at": d.article.updated_at,
-                "url": d.article.html_url,
-            },
-        )
+        attributes = {
+            "article_id": str(d.article.id),
+            "updated_at": d.article.updated_at,
+            "url": d.article.html_url,
+        }
+        pending.append((file_id, attributes, d))
 
+    attach_files_batch(
+        client,
+        vector_store_id,
+        [(fid, attrs) for fid, attrs, _ in pending],
+        chunk_size_tokens,
+        chunk_overlap_tokens,
+    )
+
+    # 5. Count, and for UPDATED articles remove the stale file now that the new
+    #    one is attached (so the article is never missing from retrieval).
+    added = updated = 0
+    for _file_id, _attrs, d in pending:
         if d.change_type == ChangeType.UPDATED:
-            # Remove the stale file AFTER attaching the new one so the article
-            # is never missing from retrieval, even briefly.
             remove_stale_file(
                 client,
                 vector_store_id,

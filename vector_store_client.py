@@ -100,6 +100,55 @@ def attach_file_to_vector_store(
     return vsf.id
 
 
+def attach_files_batch(
+    client: OpenAI,
+    vector_store_id: str,
+    file_id_attrs: list,
+    chunk_size_tokens: int,
+    chunk_overlap_tokens: int,
+) -> None:
+    """
+    Attach many already-uploaded files in ONE batched, server-parallelized
+    operation, then set each file's attributes.
+
+    Why two steps: the batch attach embeds all files in parallel and polls once
+    (far faster than attaching one-by-one and polling each — the slow part is
+    embedding), but the batch API only accepts a single shared `attributes`
+    dict. Our attributes differ per file (article_id, updated_at, url), so we
+    set them afterward via files.update, which is cheap (no re-embedding).
+
+    `file_id_attrs` is a list of (file_id, attributes) tuples. No-op if empty.
+    This keeps a full re-sync well under the platform's job timeout, where the
+    old one-by-one path (~12s/file) would exceed it past ~150 files.
+    """
+    if not file_id_attrs:
+        return
+    file_ids = [fid for fid, _ in file_id_attrs]
+    batch = client.vector_stores.file_batches.create_and_poll(
+        vector_store_id=vector_store_id,
+        file_ids=file_ids,
+        chunking_strategy={
+            "type": "static",
+            "static": {
+                "max_chunk_size_tokens": chunk_size_tokens,
+                "chunk_overlap_tokens": chunk_overlap_tokens,
+            },
+        },
+    )
+    if batch.status != "completed":
+        logger.warning(
+            "File batch %s ended with status %s (counts=%s)",
+            batch.id, batch.status, batch.file_counts,
+        )
+    for file_id, attributes in file_id_attrs:
+        if attributes:
+            client.vector_stores.files.update(
+                vector_store_id=vector_store_id,
+                file_id=file_id,
+                attributes=attributes,
+            )
+
+
 def remove_stale_file(
     client: OpenAI,
     vector_store_id: str,
