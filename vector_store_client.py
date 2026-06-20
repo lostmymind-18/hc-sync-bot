@@ -266,6 +266,7 @@ def reconstruct_state_from_store(client: OpenAI, vector_store_id: str) -> tuple:
     None, so the caller re-uploads once to backfill the attributes.
     """
     records = []
+    dead = []  # vsf entries whose underlying file object is gone (dead pointers)
     for f in _list_all_vector_store_files(client, vector_store_id):
         attrs = getattr(f, "attributes", None) or {}
         article_id = attrs.get("article_id")
@@ -275,6 +276,11 @@ def reconstruct_state_from_store(client: OpenAI, vector_store_id: str) -> tuple:
             try:
                 fname = client.files.retrieve(f.id).filename or ""
             except NotFoundError:
+                # The vector-store entry outlived its file object (e.g. a race
+                # during an update). It's a dead pointer with no content —
+                # mark it for removal so the store self-cleans to exactly one
+                # file per article and nothing else.
+                dead.append(f.id)
                 continue
             match = _ARTICLE_ID_RE.search(fname)
             if not match:
@@ -292,4 +298,5 @@ def reconstruct_state_from_store(client: OpenAI, vector_store_id: str) -> tuple:
             "file_id": f.id,
             "url": url,
         })
-    return _index_files(records)
+    state, duplicates = _index_files(records)
+    return state, duplicates + dead
