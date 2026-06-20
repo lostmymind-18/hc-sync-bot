@@ -131,3 +131,24 @@ only orchestration for the slower integration test.
 
 **Takeaway.** Push decisions into pure functions and keep I/O at the edges. The
 part most likely to be wrong becomes the part cheapest to test.
+
+---
+
+## 9. Bulk APIs trade per-item flexibility for throughput — split the two
+
+The slow part of attaching files was server-side embedding; the batch endpoint
+parallelizes it and polls once (402 files: ~12.5 min vs ~80 min one-by-one). But
+the batch takes a *single shared* `attributes` dict, while we needed per-file
+attributes. Rather than abandon batching, we split it: do the expensive shared
+operation in bulk (batch attach + embed), then apply the cheap per-item
+operation separately (`files.update` per file, no re-embedding).
+
+Also worth naming: a *managed-environment limit* (the 30-min job timeout) turned
+a slow-but-correct approach into a hard failure. Know your platform's caps and
+**measure the worst case against them** — here, timing a full cold start
+(12.5 min < 30 min) is what actually proves the job can't time out, not a
+hand-wave that "batch is faster."
+
+**Takeaway.** When a bulk API seems too rigid, look for a fast bulk path for the
+expensive shared work plus a cheap per-item pass for the rest — and verify the
+worst case fits the platform's limits with a real measurement.

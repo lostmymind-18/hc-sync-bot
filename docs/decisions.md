@@ -146,3 +146,31 @@ owns the cadence.
 **Consequence.** The container's ephemeral filesystem is exactly what drove
 decision #5: a local-state delta design passes locally but silently duplicates
 the whole corpus daily in production.
+
+---
+
+## 7. Batched attach, to fit the 30-minute job timeout
+
+**Context.** Attaching files one-by-one with `create_and_poll` blocks on
+server-side embedding (~12s/file). The first production run hit this: with the
+stateless bug from #5 not yet fixed, the deployed (old) job tried to re-upload
+all 402, ran past DigitalOcean's **30-minute** container limit, was killed at
+~183 files, and left partial duplicates (which the #5 reconcile later
+self-healed). Even with #5 fixed, a one-off large delta or a cold start would
+have the same problem: 402 × 12s ≈ 80 min.
+
+**Decision.** In `sync()`, upload all changed files, then attach them in a
+single `file_batches.create_and_poll` (server embeds them in parallel, one
+poll), and set per-file `attributes` afterward via `files.update`. The batch API
+only accepts one shared `attributes` dict, so the per-file step can't be folded
+in — but `files.update` is cheap (no re-embedding).
+
+**Evidence.** Measured a cold start of all 402 articles via the batch path:
+**~12.5 min** (751s) end-to-end, vs the ~80 min / timeout of the per-file path.
+Comfortably inside the 30-min limit, and steady-state daily runs (a handful of
+deltas, or none) finish in seconds. Acceptance tests (`eval/verify_stateless.py`)
+pass unchanged on the batch path.
+
+**Consequence.** The realistic daily job was already safe after #5 (it does ~0
+uploads); this also bounds the pathological large-delta / cold-start case so the
+job cannot time out in normal operation.
