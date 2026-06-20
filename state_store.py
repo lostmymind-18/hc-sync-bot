@@ -67,7 +67,10 @@ def diff_articles(live_articles: list, state: dict) -> list:
             diffs.append(ArticleDiff(article=article, change_type=ChangeType.ADDED))
         else:
             stored = state[key]
-            if article.updated_at > stored.get("updated_at", ""):
+            # `or ""` guards reconstructed entries whose updated_at is None
+            # (a pre-migration, attribute-less file): treat as needing an
+            # update so the next run re-uploads it and backfills attributes.
+            if article.updated_at > (stored.get("updated_at") or ""):
                 diffs.append(ArticleDiff(
                     article=article,
                     change_type=ChangeType.UPDATED,

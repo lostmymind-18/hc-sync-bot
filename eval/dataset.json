@@ -1,0 +1,69 @@
+{
+  "description": "Ground-truth eval set over the 5 test articles. `must_include` are lowercase substrings the answer should surface; `deep` flags facts buried mid-document (tables / late sections) that specifically stress chunk-boundary quality.",
+  "questions": [
+    {
+      "id": "gmeet-methods",
+      "question": "What are the two ways to connect Google Meet hardware to OptiSigns, and which is recommended?",
+      "expected_article_id": 52412502456083,
+      "must_include": ["signage url", "service account", "recommended"],
+      "max_bullets": 5,
+      "deep": false
+    },
+    {
+      "id": "gmeet-scopes",
+      "question": "What Google admin scopes does the OptiSigns service account need for Google Meet hardware?",
+      "expected_article_id": 52412502456083,
+      "must_include": ["chromeos", "directory", "admin sdk"],
+      "max_bullets": 5,
+      "deep": true
+    },
+    {
+      "id": "zoom-methods",
+      "question": "How do I connect Zoom Rooms to OptiSigns?",
+      "expected_article_id": 52069065128723,
+      "must_include": ["marketplace", "server", "client id"],
+      "max_bullets": 5,
+      "deep": false
+    },
+    {
+      "id": "youtube-setup",
+      "question": "How do I set up a YouTube Dashboard app in OptiSigns?",
+      "expected_article_id": 48626115821459,
+      "must_include": ["looker studio", "embed", "update interval"],
+      "max_bullets": 5,
+      "deep": false
+    },
+    {
+      "id": "sched-troubleshoot",
+      "question": "My screen is not turning on/off at the scheduled time. How do I troubleshoot?",
+      "expected_article_id": 48241081473043,
+      "must_include": ["time zone", "optistick", "outlet"],
+      "max_bullets": 5,
+      "deep": false
+    },
+    {
+      "id": "rs232-reliability",
+      "question": "Is RS-232 or HDMI-CEC more reliable for operational scheduling?",
+      "expected_article_id": 48241081473043,
+      "must_include": ["rs-232", "more reliable", "hdmi-cec"],
+      "max_bullets": 5,
+      "deep": true
+    },
+    {
+      "id": "plan-required",
+      "question": "Which OptiSigns plan is required to use HDMI-CEC or RS-232 operational scheduling?",
+      "expected_article_id": 48241081473043,
+      "must_include": ["pro+"],
+      "max_bullets": 5,
+      "deep": true
+    },
+    {
+      "id": "sched-create",
+      "question": "How do I create an operational schedule for a screen?",
+      "expected_article_id": 28598173096723,
+      "must_include": ["screens", "operational schedule", "new"],
+      "max_bullets": 5,
+      "deep": false
+    }
+  ]
+}

@@ -14,6 +14,7 @@ venv/
 
 # Generated data (state and scraped markdown are run artifacts, not source)
 data/markdown/*.md
+data/markdown_test5/
 data/state.json
 
 # OS/editor cruft

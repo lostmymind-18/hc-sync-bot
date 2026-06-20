@@ -60,8 +60,14 @@ def build_markdown_file(article: Article) -> tuple[str, str]:
     Frontmatter fields:
     - article_id: numeric id for delta-tracking traceability
     - title: human-readable title
-    - url: canonical article URL (used for "Article URL:" citations)
+    - url: canonical article URL (the source citation for this doc)
     - updated_at: timestamp (mirrors state.json for manual debugging)
+
+    The article URL is also written as a plain "Article URL:" line at the top
+    of the body so it travels with the content into the vector store. (Note:
+    the Assistant's file_search tool cites sources via its own annotation
+    system rather than echoing this line verbatim — see README — but keeping
+    the URL in-document aids traceability and bare-context use.)
     """
     slug = slugify(article.title)
     filename = f"{slug}.md"
@@ -79,10 +85,6 @@ def build_markdown_file(article: Article) -> tuple[str, str]:
     )
 
     body = html_to_markdown(article.body_html)
-    # Place URL at both top and bottom so it appears in the first AND last
-    # chunk. file_search does semantic retrieval — putting URL only at the
-    # top means it's absent from the how-to chunks the model actually uses.
     url_line = f"Article URL: {article.html_url}"
-    citation_block = f"\n\n---\nCitation (copy exactly): {url_line}\n---"
-    contents = frontmatter + url_line + "\n\n" + body + citation_block + "\n"
+    contents = frontmatter + url_line + "\n\n" + body + "\n"
     return filename, contents
