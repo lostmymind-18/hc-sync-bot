@@ -117,6 +117,9 @@ article URL.
 The reasoning behind the load-bearing choices (and the process / evidence behind
 them) is recorded for the review conversation:
 
+- [`docs/engineering-journey.md`](docs/engineering-journey.md) — **start here**:
+  the full story — symptoms, experiments, evidence, and lessons, including the
+  dead ends and the production incident.
 - [`docs/decisions.md`](docs/decisions.md) — decision log: data source,
   chunking, model, citations, delta detection, deployment.
 - [`docs/stateless-delta-design.md`](docs/stateless-delta-design.md) — why delta
