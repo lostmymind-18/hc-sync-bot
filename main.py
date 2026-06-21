@@ -19,6 +19,7 @@ from scraper import fetch_all_articles
 from state_store import ChangeType, diff_articles, save_state
 from vector_store_client import (
     attach_files_batch,
+    count_file_chunks,
     get_vector_store_stats,
     reconstruct_state_from_store,
     remove_stale_file,
@@ -94,10 +95,12 @@ def sync(
         chunk_overlap_tokens,
     )
 
-    # 5. Count, and for UPDATED articles remove the stale file now that the new
-    #    one is attached (so the article is never missing from retrieval).
-    added = updated = 0
-    for _file_id, _attrs, d in pending:
+    # 5. Count, tally chunks embedded for the files uploaded this run, and for
+    #    UPDATED articles remove the stale file now that the new one is attached
+    #    (so the article is never missing from retrieval).
+    added = updated = chunks_embedded = 0
+    for file_id, _attrs, d in pending:
+        chunks_embedded += count_file_chunks(client, vector_store_id, file_id)
         if d.change_type == ChangeType.UPDATED:
             remove_stale_file(
                 client,
@@ -111,7 +114,13 @@ def sync(
             added += 1
             logger.info("ADDED: %s", d.article.title)
 
-    return {"added": added, "updated": updated, "skipped": skipped}
+    return {
+        "added": added,
+        "updated": updated,
+        "skipped": skipped,
+        "files_uploaded": len(pending),
+        "chunks_embedded": chunks_embedded,
+    }
 
 
 def run() -> int:
@@ -141,12 +150,16 @@ def run() -> int:
     final_state, _ = reconstruct_state_from_store(client, cfg.openai_vector_store_id)
     save_state(cfg.state_file_path, final_state)
 
-    # 4. Summary log — greppable format for DO job logs
+    # 4. Summary log — greppable format for DO job logs. Reports both the
+    #    delta counts and what was uploaded this run (files + chunks embedded).
     stats = get_vector_store_stats(client, cfg.openai_vector_store_id)
     fc = stats["file_counts"]
     print(
         f"Run complete: added={counts['added']} updated={counts['updated']} "
-        f"skipped={counts['skipped']} total_live_articles={len(live_articles)} | "
+        f"skipped={counts['skipped']} "
+        f"files_uploaded={counts['files_uploaded']} "
+        f"chunks_embedded={counts['chunks_embedded']} "
+        f"total_live_articles={len(live_articles)} | "
         f"vector_store files: completed={fc['completed']} "
         f"in_progress={fc['in_progress']} failed={fc['failed']} total={fc['total']}"
     )

@@ -136,6 +136,23 @@ def remove_stale_file(
             )
 
 
+def count_file_chunks(client: OpenAI, vector_store_id: str, file_id: str) -> int:
+    """
+    Number of chunks the vector store produced for one file — used to log
+    "chunks embedded". Iterates the paginated content endpoint. Best-effort:
+    returns 0 (with a warning) rather than failing the run if it can't read.
+    """
+    try:
+        return sum(
+            1 for _ in client.vector_stores.files.content(
+                file_id=file_id, vector_store_id=vector_store_id
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 — logging is non-critical
+        logger.warning("Could not count chunks for file %s: %s", file_id, exc)
+        return 0
+
+
 def get_vector_store_stats(client: OpenAI, vector_store_id: str) -> dict:
     """
     Returns file_counts and usage_bytes from the vector store object.
