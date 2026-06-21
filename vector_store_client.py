@@ -11,6 +11,7 @@ something this script needs to automate.
 """
 
 import logging
+import os
 import re
 from typing import Optional
 
@@ -40,7 +41,6 @@ def upload_markdown_file(client: OpenAI, filepath: str, article_url: str = "") -
     if article_url:
         filename = article_url
     else:
-        import os
         filename = os.path.basename(filepath)
     response = client.files.create(
         file=(filename, content, "text/markdown"),
@@ -48,56 +48,6 @@ def upload_markdown_file(client: OpenAI, filepath: str, article_url: str = "") -
     )
     logger.debug("Uploaded %s → %s (filename=%s)", filepath, response.id, filename)
     return response.id
-
-
-def attach_file_to_vector_store(
-    client: OpenAI,
-    vector_store_id: str,
-    file_id: str,
-    chunk_size_tokens: int,
-    chunk_overlap_tokens: int,
-    attributes: Optional[dict] = None,
-) -> str:
-    """
-    Attach an uploaded file to the vector store using a `static` chunking
-    strategy (max_chunk_size_tokens=800, chunk_overlap_tokens=400 by default).
-
-    Polls until processing completes before returning so the caller can log
-    accurate chunk counts immediately.
-
-    `attributes` (e.g. {"article_id", "updated_at", "url"}) are stored on the
-    vector-store file and returned on list/retrieve. They let a later run
-    rebuild its delta state directly from the store — see
-    reconstruct_state_from_store and docs/stateless-delta-design.md.
-
-    Chunking rationale: Help Center articles are short and single-topic with
-    step-by-step instructions. 800 tokens keeps a full instructional step
-    intact; 400-token overlap prevents context loss at boundaries.
-    """
-    kwargs = {
-        "vector_store_id": vector_store_id,
-        "file_id": file_id,
-        "chunking_strategy": {
-            "type": "static",
-            "static": {
-                "max_chunk_size_tokens": chunk_size_tokens,
-                "chunk_overlap_tokens": chunk_overlap_tokens,
-            },
-        },
-    }
-    if attributes:
-        kwargs["attributes"] = attributes
-    vsf = client.vector_stores.files.create_and_poll(**kwargs)
-    logger.debug(
-        "Attached file %s to vector store %s → vsf %s (status=%s)",
-        file_id, vector_store_id, vsf.id, vsf.status,
-    )
-    if vsf.status != "completed":
-        logger.warning(
-            "Vector store file %s ended with status %s (not completed)",
-            vsf.id, vsf.status,
-        )
-    return vsf.id
 
 
 def attach_files_batch(

@@ -1,9 +1,12 @@
 """
-Owns data/state.json — the single source of truth mapping article_id to
-{title, slug, url, updated_at, openai_file_id, vector_store_file_id}.
+Pure delta logic: diff live articles against prior state into
+added / updated / skipped, plus a small helper to persist state to disk.
 
-This module is pure logic (no network calls), making it ideal for unit tests
-— diff_articles() is fully testable with hand-built fixtures.
+No network calls — diff_articles() is fully testable with hand-built fixtures.
+Note: the prior state is reconstructed from the vector store at runtime (see
+vector_store_client.reconstruct_state_from_store); data/state.json is only a
+derived debug artifact, not the source of truth. See
+docs/stateless-delta-design.md.
 """
 
 import json
@@ -30,17 +33,6 @@ class ArticleDiff:
     change_type: ChangeType
     stale_openai_file_id: Optional[str] = None
     stale_vector_store_file_id: Optional[str] = None
-
-
-def load_state(state_file_path: str) -> dict:
-    """
-    Load data/state.json. Returns {} on first run (file not present yet).
-    """
-    if not os.path.exists(state_file_path):
-        logger.info("No state file found at %s — first run", state_file_path)
-        return {}
-    with open(state_file_path, encoding="utf-8") as f:
-        return json.load(f)
 
 
 def save_state(state_file_path: str, state: dict) -> None:
@@ -80,23 +72,3 @@ def diff_articles(live_articles: list, state: dict) -> list:
             else:
                 diffs.append(ArticleDiff(article=article, change_type=ChangeType.SKIPPED))
     return diffs
-
-
-def update_state_entry(
-    state: dict,
-    article: Article,
-    openai_file_id: str,
-    vector_store_file_id: str,
-) -> None:
-    """
-    Mutates state in place: upserts the entry for article.id with new file ids.
-    """
-    from converter import slugify
-    state[str(article.id)] = {
-        "title": article.title,
-        "slug": slugify(article.title),
-        "url": article.html_url,
-        "updated_at": article.updated_at,
-        "openai_file_id": openai_file_id,
-        "vector_store_file_id": vector_store_file_id,
-    }

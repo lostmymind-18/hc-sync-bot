@@ -38,7 +38,7 @@ sys.path.insert(0, str(ROOT))
 from config import load_config                       # noqa: E402
 from scraper import fetch_all_articles                # noqa: E402
 from main import sync                                 # noqa: E402  (implemented for this design)
-from vector_store_client import attach_file_to_vector_store  # noqa: E402
+from vector_store_client import attach_files_batch    # noqa: E402
 
 TEST_IDS = {28598173096723, 48241081473043, 48626115821459, 52069065128723, 52412502456083}
 CHUNK, OVERLAP = 800, 400
@@ -143,9 +143,10 @@ def run():
         print("\nScenario D: inject duplicate -> self-healing reconcile")
         dup = articles[1]
         extra = client.files.create(file=(dup.html_url, b"stale duplicate body\n", "text/markdown"), purpose="assistants")
-        attach_file_to_vector_store(
-            client, vs.id, extra.id, CHUNK, OVERLAP,
-            attributes={"article_id": str(dup.id), "updated_at": "2010-01-01T00:00:00Z", "url": dup.html_url},
+        attach_files_batch(
+            client, vs.id,
+            [(extra.id, {"article_id": str(dup.id), "updated_at": "2010-01-01T00:00:00Z", "url": dup.html_url})],
+            CHUNK, OVERLAP,
         )
         assert len(list_files(client, vs.id)) == 6, "[D] setup: expected 6 files after injecting duplicate"
         expect("D", sync(client, vs.id, articles, CHUNK, OVERLAP, md_dir), added=0, updated=0, skipped=5)

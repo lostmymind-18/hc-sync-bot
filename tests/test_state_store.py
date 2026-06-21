@@ -7,9 +7,8 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-import pytest
 from scraper import Article
-from state_store import ChangeType, diff_articles, update_state_entry
+from state_store import ChangeType, diff_articles
 
 
 def make_article(id=1001, title="Test Article", updated_at="2025-01-01T00:00:00Z"):
@@ -94,34 +93,3 @@ def test_mixed_articles():
     assert by_id[100].change_type == ChangeType.ADDED
     assert by_id[200].change_type == ChangeType.UPDATED
     assert by_id[300].change_type == ChangeType.SKIPPED
-
-
-# ── update_state_entry tests ─────────────────────────────────────────────────
-
-def test_update_state_entry_writes_correct_fields():
-    state = {}
-    article = make_article(id=999, title="Hello World", updated_at="2026-01-01T00:00:00Z")
-    update_state_entry(state, article, "file_abc", "vsf_xyz")
-    entry = state["999"]
-    assert entry["title"] == "Hello World"
-    assert entry["slug"] == "hello-world"
-    assert entry["openai_file_id"] == "file_abc"
-    assert entry["vector_store_file_id"] == "vsf_xyz"
-    assert entry["updated_at"] == "2026-01-01T00:00:00Z"
-
-
-def test_update_state_entry_overwrites_existing():
-    state = {
-        "999": {
-            "title": "Old Title",
-            "openai_file_id": "old_file",
-            "vector_store_file_id": "old_vsf",
-            "updated_at": "2025-01-01T00:00:00Z",
-        }
-    }
-    article = make_article(id=999, title="New Title", updated_at="2026-06-01T00:00:00Z")
-    update_state_entry(state, article, "new_file", "new_vsf")
-    entry = state["999"]
-    assert entry["title"] == "New Title"
-    assert entry["openai_file_id"] == "new_file"
-    assert entry["vector_store_file_id"] == "new_vsf"

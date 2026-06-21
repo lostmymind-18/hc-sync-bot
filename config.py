@@ -14,7 +14,6 @@ load_dotenv()
 @dataclass(frozen=True)
 class Config:
     openai_api_key: str
-    openai_assistant_id: str
     openai_vector_store_id: str
     zendesk_subdomain: str
     chunk_size_tokens: int
@@ -43,7 +42,6 @@ def load_config() -> Config:
         return val
 
     openai_api_key = require("OPENAI_API_KEY")
-    openai_assistant_id = require("OPENAI_ASSISTANT_ID")
     openai_vector_store_id = require("OPENAI_VECTOR_STORE_ID")
     zendesk_subdomain = os.environ.get("ZENDESK_SUBDOMAIN", "support.optisigns.com").strip()
 
@@ -55,7 +53,6 @@ def load_config() -> Config:
 
     return Config(
         openai_api_key=openai_api_key,
-        openai_assistant_id=openai_assistant_id,
         openai_vector_store_id=openai_vector_store_id,
         zendesk_subdomain=zendesk_subdomain,
         zendesk_email=os.environ.get("ZENDESK_EMAIL", ""),

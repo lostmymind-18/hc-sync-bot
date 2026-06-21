@@ -21,7 +21,8 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://support.optisigns.com/api/v2/help_center/en-us/articles.json"
+# Locale-scoped path; the non-locale URL 301-redirects here (confirmed live).
+ARTICLES_PATH = "/api/v2/help_center/en-us/articles.json"
 PAGE_SIZE = 100
 
 
@@ -64,7 +65,7 @@ def fetch_all_articles(subdomain: str) -> list[Article]:
     returns a 301 redirect to en-us, confirmed live). Cursor pagination via
     links.next + meta.has_more.
     """
-    url = f"{BASE_URL}?page%5Bsize%5D={PAGE_SIZE}"
+    url = f"https://{subdomain}{ARTICLES_PATH}?page%5Bsize%5D={PAGE_SIZE}"
     articles: list[Article] = []
 
     while url:
@@ -85,11 +86,3 @@ def fetch_all_articles(subdomain: str) -> list[Article]:
 
     logger.info("Total articles fetched: %d", len(articles))
     return articles
-
-
-def fetch_articles_updated_since(subdomain: str, start_time_epoch: int) -> list[Article]:
-    """
-    Optional incremental endpoint — not used by the primary pipeline but kept
-    for reference as a fallback/cross-check option.
-    """
-    raise NotImplementedError

@@ -38,9 +38,10 @@ def html_to_markdown(body_html: str) -> str:
     real articles.
 
     Options chosen:
-    - heading_style=ATX: use # syntax instead of underline-style
-    - code_language_callback: preserve language hints from <code class="lang-...">
-    - strip=[]: don't strip any tags (markdownify's default is conservative)
+    - heading_style=ATX: use # syntax instead of underline-style headings
+    - bullets="-": consistent "-" list markers
+    - strip=["script", "style"]: drop any stray script/style tags
+    Excess blank lines are then collapsed to keep the Markdown tidy.
     """
     md = markdownify.markdownify(
         body_html,

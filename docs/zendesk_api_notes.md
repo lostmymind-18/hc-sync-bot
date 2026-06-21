@@ -67,5 +67,6 @@ sufficient at this scale (402 articles, daily run).
 GET https://support.optisigns.com/api/v2/help_center/incremental/articles.json?start_time={epoch}
 ```
 
-Available but not needed — primary delta strategy compares `updated_at` per
-article against state.json.
+Available but not needed — the primary delta strategy compares each article's
+`updated_at` against the value stored on its vector-store file (reconstructed
+from the store each run; see docs/stateless-delta-design.md).

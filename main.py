@@ -9,7 +9,6 @@ run that fails is visible as a failed job, not a silent no-op.
 """
 
 import logging
-import os
 import pathlib
 import sys
 
