@@ -152,3 +152,84 @@ hand-wave that "batch is faster."
 **Takeaway.** When a bulk API seems too rigid, look for a fast bulk path for the
 expensive shared work plus a cheap per-item pass for the rest — and verify the
 worst case fits the platform's limits with a real measurement.
+
+---
+
+## Deep dive: what a "harness" is, and how this project used it
+
+Several lessons above ("measure, don't guess"; "write the acceptance test
+first") lean on the same tool — a **harness** — so it's worth defining clearly,
+because it was the single highest-leverage technique in this project.
+
+### What it is
+
+A **harness** is scaffolding code that wraps the thing you're testing so you can
+run it **repeatedly, in a controlled and isolated environment, and judge the
+result automatically** — instead of running it by hand and eyeballing the
+output. "Test harness" and "evaluation (eval) harness" are the same idea pointed
+at two questions:
+
+- a **test harness** answers *"is it correct?"* with pass/fail assertions;
+- an **eval harness** answers *"how good is it?"* with a score.
+
+Either way the value is the same: it converts a vague judgment ("seems fine",
+"probably the best chunking") into a **repeatable, automated verdict** you can
+trust, re-run after every change, and show as evidence.
+
+### The two harnesses we built
+
+**1. `eval/chunking_eval.py` — an eval harness (measure quality).**
+- *Question:* which chunking strategy retrieves best?
+- *Setup:* for each strategy, spin up a **throwaway** vector store (never the
+  production one), upload the docs, attach with that strategy.
+- *Stimulus:* a fixed **ground-truth Q&A set** (`eval/dataset.json`) with the
+  expected source article and key facts per question — including facts buried
+  mid-document, to stress chunk boundaries.
+- *Measurement:* it reads the **chunks `file_search` actually retrieved** (via
+  run steps), not just the final answer, and scores retrieval-hit, fact
+  coverage, citation correctness, bullet-count.
+- *Noise control:* `--repeats=N` averaging + retry-on-empty, because a single
+  run was flaky.
+- *Output:* a comparison table. Verdict: chunk sizing isn't the bottleneck for
+  short articles — a fact with numbers, not an opinion.
+- *Reusable:* add one entry to the `STRATEGIES` dict to test a new tactic.
+
+**2. `eval/verify_stateless.py` — an acceptance test harness (prove correctness).**
+- *Invariant under test:* "every live article maps to exactly one file in the
+  store, and nothing else" (called `P2`).
+- *Setup:* a throwaway store seeded with a few articles.
+- *Scenarios:* it drives `sync()` through a sequence — A (empty → all added),
+  B (run again with no local state → all skipped, no duplication = the
+  ephemeral-container proof), C (force a stale timestamp → updated, replaced not
+  appended), D (inject a duplicate → reconciled away).
+- *Judgment:* after each scenario it **asserts P2**, polling to convergence to
+  tolerate the store's eventual consistency.
+- *Output:* `ALL SCENARIOS PASSED` or a precise failure. This is the executable
+  definition of "done" for the stateless rework.
+
+(`tests/test_*.py` are harnesses too — pytest is a ready-made one for pure
+functions. The two above are custom because they need live API setup/teardown.)
+
+### The recipe (reusable on any project)
+
+A good harness has the same five parts every time:
+1. **Isolated environment** — throwaway resources, set up and torn down each run;
+   never the production system.
+2. **Fixed stimulus** — a dataset or scenario sequence that is the same every
+   run, so results are comparable.
+3. **Automated judgment** — assertions (correctness) or a score (quality), read
+   from the **real internal signal** where possible, not just the surface
+   output.
+4. **Noise handling** — repeats/averaging, retries, or polling to convergence,
+   so a flaky run doesn't read as a real failure.
+5. **Reusability** — a registry or parameter so the next variant is one line to
+   add.
+
+### When to reach for one
+
+When you're about to **argue** (which design is better?), **guess** (will it
+scale / time out?), or **eyeball** (does it still work after this change?) — that
+is exactly when to spend 30–60 minutes building a harness instead. It pays for
+itself the second time you run it, and it becomes the evidence behind every claim
+you later make in a review.
+
